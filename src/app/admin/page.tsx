@@ -1,0 +1,505 @@
+'use client';
+
+import Navbar from "@/components/Navbar";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { BarChart, Users, Car, AlertTriangle, Bell, Settings, QrCode, PlusCircle, IndianRupee, CheckCircle2, Navigation, Sparkles, MapPin, Info, Ticket, TreePine } from "lucide-react";
+import { TicketValidator } from "@/components/admin/TicketValidator";
+import { AdminEco } from "@/components/admin/AdminEco";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart as RechartsBar, Bar, XAxis, Tooltip } from 'recharts';
+import { motion } from "framer-motion";
+
+export default function AdminDashboard() {
+    const router = useRouter();
+    const [checkingAdmin, setCheckingAdmin] = useState(true);
+    const [crowdThreshold, setCrowdThreshold] = useState(5000);
+    const [stats, setStats] = useState<any>(null);
+    const [lockdown, setLockdown] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [settings, setSettings] = useState<any>({});
+    const [notifications, setNotifications] = useState<any[]>([]);
+
+    useEffect(() => {
+        fetch('/api/user/role')
+            .then(res => res.json())
+            .then(data => {
+                if (data.role !== 'ADMIN') router.replace('/');
+                else setCheckingAdmin(false);
+            })
+            .catch(() => router.replace('/'));
+    }, [router]);
+
+    useEffect(() => {
+        if (checkingAdmin) return;
+        fetchStats();
+        fetchSettings();
+        fetch('/api/admin/notifications')
+            .then(res => res.json())
+            .then(data => setNotifications(data.notifications || []))
+            .catch(() => setNotifications([]));
+    }, [checkingAdmin]);
+
+    if (checkingAdmin) {
+        return <div className="min-h-screen bg-[#051c14] flex items-center justify-center text-white"><p className="font-bold">Checking administrator access...</p></div>;
+    }
+
+    const fetchStats = () => {
+        fetch('/api/admin/stats')
+            .then(res => {
+                if (!res.ok) throw new Error('API Error');
+                return res.json();
+            })
+            .then(data => setStats(data))
+            .catch(err => console.error("Stats fetch error:", err));
+    };
+
+    const fetchSettings = () => {
+        fetch('/api/admin/settings')
+            .then(res => {
+                if (!res.ok) throw new Error('API Error');
+                return res.json();
+            })
+            .then(data => {
+                setSettings(data);
+                if (data.global_threshold) setCrowdThreshold(parseInt(data.global_threshold));
+                if (data.lockdown === 'true') setLockdown(true);
+            })
+            .catch(err => console.error("Settings fetch error:", err));
+    };
+
+    const updateSetting = async (key: string, value: string | number) => {
+        await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, value })
+        });
+        fetchSettings(); // Refresh
+    };
+
+    const handleAction = async (type: string, details: string) => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actionType: type, details })
+            });
+            if (res.ok) {
+                alert(`${type} executed successfully.`);
+                fetchStats(); // Update logs
+            }
+        } catch (e) {
+            alert('Action failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleLockdown = async () => {
+        const newState = !lockdown;
+        setLockdown(newState);
+        await updateSetting('lockdown', newState ? 'true' : 'false');
+        handleAction('EMERGENCY_LOCKDOWN', newState ? 'ENABLED' : 'DISABLED');
+    };
+
+    const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = parseInt(e.target.value);
+        setCrowdThreshold(val);
+        updateSetting('global_threshold', val);
+    };
+
+    const data = [
+        { name: 'Ooty Lake', value: stats?.activeNow ? 45 + stats.activeNow : 4000 },
+        { name: 'Doddabetta', value: 3000 },
+        { name: 'Coonoor', value: 2000 },
+        { name: 'Pykara', value: 2780 },
+    ];
+
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 }
+    };
+
+    return (
+        <>
+            <Navbar />
+            <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={containerVariants}
+                className="pt-24 px-6 pb-12 w-full max-w-7xl mx-auto"
+            >
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <motion.h1 layout className="text-3xl font-bold text-white flex items-center gap-3">
+                        <Settings className="text-green-400" /> Admin Control Center
+                    </motion.h1>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                        <Button
+                            onClick={toggleLockdown}
+                            variant={lockdown ? "primary" : "danger"}
+                            className={`text-sm ${lockdown ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500'}`}
+                        >
+                            {lockdown ? 'Resume Operations' : 'Emergency Lockdown'}
+                        </Button>
+                    </motion.div>
+                </div>
+
+                {lockdown && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="w-full bg-red-600/20 border border-red-500 p-4 mb-6 rounded-xl flex items-center gap-4 text-white"
+                    >
+                        <AlertTriangle className="text-red-500 fill-current animate-pulse" />
+                        <div>
+                            <h3 className="font-bold text-lg">SYSTEM LOCKDOWN ACTIVE</h3>
+                            <p className="text-sm opacity-80">New pass issuance is suspended globally. Only active passes can exit.</p>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Action Bar */}
+                <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 mb-6">
+                    <Link href="/scan" className="flex-1">
+                        <Button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-6 px-8 rounded-xl shadow-lg border border-indigo-400/30 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]">
+                            <QrCode size={24} /> Launch QC Scanner
+                        </Button>
+                    </Link>
+                    <Link href="/apply" className="flex-1">
+                        <Button className="w-full bg-white hover:bg-gray-100 text-gray-900 font-bold py-6 px-8 rounded-xl shadow-lg border border-white/30 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]">
+                            <PlusCircle size={24} /> New Manual Entry
+                        </Button>
+                    </Link>
+                </motion.div>
+
+                {/* Stats Grid */}
+                <motion.div variants={containerVariants} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
+                    <StatCard icon={<Users className="text-blue-500" />} title="Today's Pass" value={stats?.todayVisitors || '0'} delay={0.1} />
+                    <StatCard icon={<Car className="text-green-500" />} title="Parking Occupied" value={stats?.parkingOccupied || '0'} delay={0.2} />
+                    <StatCard icon={<AlertTriangle className="text-yellow-500" />} title="Active Now" value={stats?.activeNow || '0'} delay={0.3} />
+                    <StatCard icon={<IndianRupee className="text-purple-500" />} title="Total Revenue" value={`₹${stats?.totalRevenue || '0'}`} delay={0.4} />
+                    <StatCard icon={<CheckCircle2 className="text-emerald-500" />} title="Total Issued" value={stats?.totalVisitors || '0'} delay={0.5} />
+                </motion.div>
+
+                <motion.div variants={itemVariants} className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-xl">
+                    <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-amber-950"><Bell className="text-amber-600" /> Contact Notifications</h2>
+                    {notifications.length === 0 ? <p className="text-sm font-medium text-amber-800">No new contact messages.</p> : <div className="space-y-3">{notifications.map(notification => <div key={notification.id} className="rounded-xl border border-amber-200 bg-white p-4 text-sm font-medium text-slate-800">{notification.message}<p className="mt-2 text-xs text-slate-500">{new Date(notification.createdAt).toLocaleString()}</p></div>)}</div>}
+                </motion.div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Crowd Control Panel */}
+                    <motion.div
+                        variants={itemVariants}
+                        className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-white/20"
+                    >
+                        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <Users className="text-blue-500" /> Crowd Density Control
+                        </h2>
+                        <div className="space-y-6">
+                            <div>
+                                <div className="flex justify-between text-sm text-gray-500 mb-2">
+                                    <span>Global Threshold limit</span>
+                                    <span className="font-mono text-green-600 font-bold">{crowdThreshold} visitors</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1000"
+                                    max="10000"
+                                    step="100"
+                                    value={crowdThreshold}
+                                    onChange={handleThresholdChange}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                    <Button
+                                        onClick={() => handleAction('REDIRECT_TRAFFIC', 'Route A to Route B diverts triggered')}
+                                        variant="secondary"
+                                        className="w-full justify-center border-none bg-blue-100 text-blue-700 hover:bg-blue-200 py-6"
+                                    >
+                                        Redirect Traffic
+                                    </Button>
+                                </motion.div>
+                                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                    <Button
+                                        onClick={() => handleAction('BROADCAST_SMS', 'Safety alert sent to all active visitors')}
+                                        variant="secondary"
+                                        className="w-full justify-center border-none bg-yellow-100 text-yellow-700 hover:bg-yellow-200 py-6"
+                                    >
+                                        Broadcast SMS
+                                    </Button>
+                                </motion.div>
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    {/* Map Engine Calibration */}
+                    <motion.div
+                        variants={itemVariants}
+                        className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-white/20"
+                    >
+                        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <Navigation className="text-indigo-500" /> Map Engine Calibration
+                        </h2>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-gray-400 uppercase">Parking Weight</label>
+                                    <input
+                                        type="number" step="0.05"
+                                        defaultValue="0.40"
+                                        onBlur={(e) => updateSetting('WEIGHT_PARKING', e.target.value)}
+                                        className="w-full p-2 bg-gray-50 rounded-lg border text-sm font-bold"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-gray-400 uppercase">Passes Weight</label>
+                                    <input
+                                        type="number" step="0.05"
+                                        defaultValue="0.35"
+                                        onBlur={(e) => updateSetting('WEIGHT_PASSES', e.target.value)}
+                                        className="w-full p-2 bg-gray-50 rounded-lg border text-sm font-bold"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                                <div>
+                                    <p className="font-bold text-indigo-900">Festival Mode</p>
+                                    <p className="text-xs text-indigo-600">Forces "High" density baseline</p>
+                                </div>
+                                <button
+                                    onClick={() => updateSetting('FESTIVAL_MODE', lockdown ? 'false' : 'true')} // Simulating toggle logic
+                                    className={`px-4 py-2 rounded-lg font-black text-xs transition-colors ${lockdown ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'}`}
+                                >
+                                    {lockdown ? 'ACTIVE' : 'INACTIVE'}
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-gray-400 uppercase">Blocked Roads (CS-Names)</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Ooty Lake, Botanical Garden"
+                                    onBlur={(e) => updateSetting('BLOCKED_ROADS', e.target.value)}
+                                    className="w-full p-2 bg-gray-50 rounded-lg border text-sm font-bold"
+                                />
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                    {/* Live Analytics */}
+                    <motion.div
+                        variants={itemVariants}
+                        className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-white/20 min-h-[300px]"
+                    >
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Live Location Density</h2>
+                        <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <RechartsBar data={data}>
+                                    <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', color: '#111827' }}
+                                        itemStyle={{ color: '#111827' }}
+                                    />
+                                    <Bar dataKey="value" fill="#4b5563" radius={[4, 4, 0, 0]} animationDuration={1500} />
+                                </RechartsBar>
+                            </ResponsiveContainer>
+                        </div>
+                    </motion.div>
+
+                    {/* Manual Location Override & Emergency Closures */}
+                    <motion.div
+                        variants={itemVariants}
+                        className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-white/20"
+                    >
+                        {/* Festival Mode & Smart Thresholds */}
+                        <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-8 border-4 border-amber-400">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+                                        <Sparkles className="text-amber-500" /> Festival Mode
+                                    </h2>
+                                    <p className="text-xs font-bold text-gray-500">Enable during peak season events (Flower Show, etc.)</p>
+                                </div>
+                                <button
+                                    onClick={() => updateSetting('FESTIVAL_MODE', settings?.FESTIVAL_MODE === 'true' ? 'false' : 'true')}
+                                    className={`px-6 py-2 rounded-full font-black text-xs transition-all ${settings?.FESTIVAL_MODE === 'true' ? 'bg-amber-500 text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}
+                                >
+                                    {settings?.FESTIVAL_MODE === 'true' ? 'ACTIVE' : 'OFF'}
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-3">Redirect Sensitivity Weights</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {[
+                                            { key: 'WEIGHT_PARKING', label: 'Parking Space', icon: <MapPin size={12} /> },
+                                            { key: 'WEIGHT_PASSES', label: 'E-Pass Flow', icon: <Users size={12} /> },
+                                            { key: 'WEIGHT_HISTORY', label: 'Trends', icon: <Info size={12} /> },
+                                            { key: 'WEIGHT_WEATHER', label: 'Climate', icon: <Sparkles size={12} /> }
+                                        ].map(weight => (
+                                            <div key={weight.key} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                                <div className="flex items-center gap-2 mb-2 text-gray-400">
+                                                    {weight.icon} <span className="text-[10px] font-black uppercase">{weight.label}</span>
+                                                </div>
+                                                <input
+                                                    type="range" min="0" max="1" step="0.1"
+                                                    defaultValue={settings?.[weight.key] || '0.25'}
+                                                    onChange={(e) => updateSetting(weight.key, e.target.value)}
+                                                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-white/20">
+                            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <AlertTriangle className="text-amber-500" /> Manual Overrides & Closures
+                            </h2>
+                            <div className="space-y-4 overflow-y-auto max-h-[400px] pr-2 scrollbar-none">
+                                {['Ooty Lake', 'Botanical Garden', 'Doddabetta Peak', 'Rose Garden', 'Pykara Lake'].map(loc => (
+                                    <div key={loc} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-black text-gray-900 uppercase tracking-tight">{loc}</span>
+                                            <div className="flex gap-1.5">
+                                                {['SAFE', 'MEDIUM', 'OVERFLOW'].map(lvl => (
+                                                    <button
+                                                        key={lvl}
+                                                        onClick={() => updateSetting(`CROWD_STATUS_${loc.toUpperCase().replace(/\s+/g, '_')}`, lvl)}
+                                                        className={`text-[8px] font-black px-2.5 py-1 rounded-full transition-all border ${lvl === 'SAFE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-500 hover:text-white' : lvl === 'MEDIUM' ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-500 hover:text-white' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-500 hover:text-white'}`}
+                                                    >
+                                                        {lvl}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                                            <select
+                                                onChange={(e) => {
+                                                    if (e.target.value === 'OPEN') {
+                                                        updateSetting(`TRAFFIC_STATUS_${loc.toUpperCase().replace(/\s+/g, '_')}`, 'SMOOTH');
+                                                        updateSetting(`CLOSURE_REASON_${loc.toUpperCase().replace(/\s+/g, '_')}`, '');
+                                                    } else {
+                                                        updateSetting(`TRAFFIC_STATUS_${loc.toUpperCase().replace(/\s+/g, '_')}`, 'BLOCKED');
+                                                        updateSetting(`CLOSURE_REASON_${loc.toUpperCase().replace(/\s+/g, '_')}`, e.target.value);
+                                                    }
+                                                }}
+                                                className="text-[10px] font-black p-2 bg-white rounded-lg border flex-1"
+                                            >
+                                                <option value="OPEN">ROUTE OPEN</option>
+                                                <option value="NATURAL_DISASTER">CLOSE - NATURAL DISASTER</option>
+                                                <option value="ACCIDENT">CLOSE - ACCIDENT</option>
+                                                <option value="ROAD_ISSUE">CLOSE - ROAD ISSUE</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                </div>
+
+                {/* Recent Logs (Real) */}
+                <motion.div
+                    variants={itemVariants}
+                    className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-6 mt-8 border border-white/20"
+                >
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Activity Logs</h2>
+                    <div className="space-y-0">
+                        {stats?.recentActivity?.map((pass: any, i: number) => (
+                            <LogItem
+                                key={pass.id}
+                                time={new Date(pass.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                msg={`${pass.status} - ${pass.vehicleNo} (${pass.user?.name || 'User'})`}
+                                type={pass.status === 'PENDING' ? 'warning' : 'info'}
+                                delay={i * 0.05}
+                            />
+                        ))}
+                        {!stats?.recentActivity?.length && <p className="text-gray-500 text-sm">No recent activity.</p>}
+                    </div>
+                </motion.div>
+
+                {/* Ticket Validator Module */}
+                <motion.div
+                    variants={itemVariants}
+                    className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-6 mt-8 border border-white/20"
+                >
+                    <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <Ticket className="text-purple-600" /> Offline Ticket Validator
+                    </h2>
+                    <TicketValidator />
+                </motion.div>
+
+                {/* Eco Rewards Management */}
+                <motion.div
+                    variants={itemVariants}
+                    className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-6 mt-8 border border-white/20"
+                >
+                    <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <TreePine className="text-emerald-600" /> Eco Rewards & Partner Management
+                    </h2>
+                    <AdminEco />
+                </motion.div>
+
+            </motion.div>
+        </>
+    );
+}
+
+function StatCard({ icon, title, value, delay }: { icon: any, title: string, value: string, delay: number }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay }}
+            className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl p-6 flex flex-col justify-between border border-white/20 h-full hover:shadow-2xl transition-shadow"
+        >
+            <div className="flex justify-between items-start">
+                <div>
+                    <h3 className="text-gray-500 text-xs font-bold uppercase tracking-wider">{title}</h3>
+                    <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
+                </div>
+                <div className="p-2 bg-gray-50 rounded-lg border border-gray-100">
+                    {icon}
+                </div>
+            </div>
+        </motion.div>
+    )
+}
+
+function LogItem({ time, msg, type = 'info', delay }: { time: string, msg: string, type?: 'info' | 'warning', delay: number }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay }}
+            className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 -mx-2 px-2 rounded cursor-default"
+        >
+            <span className="text-xs font-mono text-gray-400 w-20 shrink-0">{time}</span>
+            <span className={`text-sm ${type === 'warning' ? 'text-yellow-600 font-bold' : 'text-gray-700 font-medium'}`}>{msg}</span>
+        </motion.div>
+    )
+}

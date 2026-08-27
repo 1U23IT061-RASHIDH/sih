@@ -1,0 +1,217 @@
+
+import { getWeather } from "./weatherService";
+
+export interface TouristSpot {
+    id: string;
+    name: string;
+    description: string;
+    type: 'INDOOR' | 'OUTDOOR';
+    image: string;
+    latitude: number;
+    longitude: number;
+    openTime: string;
+    closeTime: string;
+    virtualTourUrl?: string;
+}
+
+export interface LiveSpotData extends TouristSpot {
+    crowdLevel: 'SAFE' | 'MEDIUM' | 'OVERFLOW';
+    crowdCount: number;
+    parkingAvailable: boolean;
+    parkingSlots: number;
+    weatherCondition: string;
+    visitScore: number; // 0 to 100
+    recommendationReason: string;
+}
+
+export const STATIC_SPOTS: TouristSpot[] = [
+    {
+        id: 'ooty-lake',
+        name: 'Ooty Lake',
+        description: 'Artificial lake built by John Sullivan in 1824. Famous for boating.',
+        type: 'OUTDOOR',
+        image: 'https://images.unsplash.com/photo-1559827291-72ee739d0d9a?auto=format&fit=crop&q=80&w=600',
+        latitude: 11.4102,
+        longitude: 76.6950,
+        openTime: '09:00',
+        closeTime: '18:00',
+        virtualTourUrl: '/virtual-tour/ooty-lake'
+    },
+    {
+        id: 'botanical-garden',
+        name: 'Botanical Garden',
+        description: 'Sprawling gardens with exotic plants, ferns & a fossilized tree.',
+        type: 'OUTDOOR',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Botanical_Gardens_-_Ootacamund_%28Ooty%29_-_India_03.JPG/960px-Botanical_Gardens_-_Ootacamund_%28Ooty%29_-_India_03.JPG',
+        latitude: 11.4150,
+        longitude: 76.7100,
+        openTime: '07:00',
+        closeTime: '18:30',
+        virtualTourUrl: '/virtual-tour/botanical'
+    },
+    {
+        id: 'doddabetta',
+        name: 'Doddabetta Peak',
+        description: 'Highest peak in the Nilgiris offering panoramic views.',
+        type: 'OUTDOOR',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Doddabetta_viewOf_Ooty_1.jpg/960px-Doddabetta_viewOf_Ooty_1.jpg',
+        latitude: 11.4012,
+        longitude: 76.7348,
+        openTime: '07:00',
+        closeTime: '18:00',
+        virtualTourUrl: '/virtual-tour/doddabetta'
+    },
+    {
+        id: 'tea-factory',
+        name: 'Tea Factory & Museum',
+        description: 'Learn how tea is processed and taste fresh Nilgiri tea.',
+        type: 'INDOOR',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Ooty-tea-factory.jpg/960px-Ooty-tea-factory.jpg',
+        latitude: 11.4050,
+        longitude: 76.7150,
+        openTime: '09:00',
+        closeTime: '19:00',
+        virtualTourUrl: '/virtual-tour/tea-factory'
+    },
+    {
+        id: 'rose-garden',
+        name: 'Government Rose Garden',
+        description: 'Largest rose garden in India with thousands of varieties.',
+        type: 'OUTDOOR',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Government_Rose_Garden%2C_Ooty%2C_Tamil_Nadu%2C_India.jpg/960px-Government_Rose_Garden%2C_Ooty%2C_Tamil_Nadu%2C_India.jpg',
+        latitude: 11.4000,
+        longitude: 76.7100,
+        openTime: '07:30',
+        closeTime: '18:30'
+    },
+    {
+        id: 'pykara',
+        name: 'Pykara Falls & Lake',
+        description: 'Majestic waterfalls and a serene lake away from the town center.',
+        type: 'OUTDOOR',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Pykara_Lake%2C_Ooty_02.jpg/960px-Pykara_Lake%2C_Ooty_02.jpg',
+        latitude: 11.4500,
+        longitude: 76.6000,
+        openTime: '08:30',
+        closeTime: '17:30'
+    },
+    {
+        id: 'tribal-museum',
+        name: 'Tribal Museum',
+        description: 'Artifacts and history of the indigenous tribes of Nilgiris.',
+        type: 'INDOOR',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Front_Tribal_Museum_M.Palada_Nilgiris_Nov25_A7CR_09722.jpg/960px-Front_Tribal_Museum_M.Palada_Nilgiris_Nov25_A7CR_09722.jpg',
+        latitude: 11.4200,
+        longitude: 76.7000,
+        openTime: '10:00',
+        closeTime: '17:00'
+    },
+    {
+        id: 'tea-forest',
+        name: 'Nilgiri Tea Forest',
+        description: 'Rolling Nilgiri tea fields and forested mountain views near Ooty.',
+        type: 'OUTDOOR',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Tea_Fields_Nilgiris_Ranges_Mynala_Dec25_A7CR_09866.jpg/960px-Tea_Fields_Nilgiris_Ranges_Mynala_Dec25_A7CR_09866.jpg',
+        latitude: 11.3820,
+        longitude: 76.6420,
+        openTime: '06:00',
+        closeTime: '18:00'
+    }
+];
+
+// Helper to simulate reliable "live" data
+const getSimulatedCrowd = (id: string) => {
+    // Deterministic random based on hour to keep it stable for demo
+    const hour = new Date().getHours();
+    const baseHash = id.charCodeAt(0) + hour;
+    return Math.floor((Math.sin(baseHash) + 1) * 500) + 50; // Returns 50-1050 visitors
+};
+
+export const getSmartRecommendations = async (): Promise<LiveSpotData[]> => {
+    // 1. Get Live Weather
+    const weather = await getWeather('Ooty');
+    const isRaining = weather?.current.code ? weather.current.code >= 51 : false;
+    const isFoggy = weather?.current.code ? (weather.current.code >= 45 && weather.current.code <= 48) : false;
+
+    // 2. Process each spot
+    const recommendations = STATIC_SPOTS.map(spot => {
+        const crowdCount = getSimulatedCrowd(spot.id);
+        const capacity = 1000; // Simulated capacity
+        const crowdPercentage = (crowdCount / capacity) * 100;
+
+        let crowdLevel: 'SAFE' | 'MEDIUM' | 'OVERFLOW' = 'SAFE';
+        if (crowdPercentage > 80) crowdLevel = 'OVERFLOW';
+        else if (crowdPercentage > 50) crowdLevel = 'MEDIUM';
+
+        const parkingSlots = Math.max(0, 100 - Math.floor(crowdCount / 10)); // Rough heuristic
+        const parkingAvailable = parkingSlots > 10;
+
+        // 3. AI Scoring Logic
+        let score = 100;
+        let reasons: string[] = [];
+
+        // Weather Influence
+        if (spot.type === 'OUTDOOR') {
+            if (isRaining) {
+                score -= 60;
+                reasons.push("Rain Warning");
+            } else if (isFoggy) {
+                score -= 30;
+                reasons.push("Low Visibility");
+            } else {
+                score += 10;
+                reasons.push("Great Weather");
+            }
+        } else {
+            if (isRaining) {
+                score += 30; // Boost indoor spots during rain
+                reasons.push("Perfect for Rain");
+            }
+        }
+
+        // Crowd Influence
+        if (crowdLevel === 'OVERFLOW') {
+            score -= 40;
+            reasons.push("Overcrowded");
+        } else if (crowdLevel === 'MEDIUM') {
+            score -= 20;
+        } else {
+            score += 20;
+            reasons.push("Less Crowd");
+        }
+
+        // Parking Influence
+        if (!parkingAvailable) {
+            score -= 20;
+            reasons.push("Parking Full");
+        }
+
+        return {
+            ...spot,
+            crowdLevel,
+            crowdCount,
+            parkingAvailable,
+            parkingSlots,
+            weatherCondition: isRaining ? 'Rainy' : isFoggy ? 'Foggy' : 'Clear',
+            visitScore: Math.max(0, Math.min(100, score)),
+            recommendationReason: reasons[0] || "Average Condition"
+        };
+    });
+
+    // Sort by score
+    return recommendations.sort((a, b) => b.visitScore - a.visitScore);
+};
+
+export const getPredictionForNext3Hours = () => {
+    const currentHour = new Date().getHours();
+    return Array.from({ length: 3 }).map((_, i) => {
+        const hour = (currentHour + i + 1) % 24;
+        const formattedHour = `${hour}:00`;
+        // Simulating a trend where crowd peaks at 11am-2pm
+        let trend = 'SAFE';
+        if (hour >= 11 && hour <= 14) trend = 'OVERFLOW';
+        else if (hour >= 9 && hour <= 18) trend = 'MEDIUM';
+
+        return { time: formattedHour, crowdTrend: trend };
+    });
+};
