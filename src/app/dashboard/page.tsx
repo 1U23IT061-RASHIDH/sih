@@ -20,7 +20,7 @@ export default async function Dashboard() {
     if (!user) {
         redirect('/');
     }
-
+     
     // Fetch Active Pass with full details
     let activePass = null;
     if (process.env.DATABASE_URL) try {

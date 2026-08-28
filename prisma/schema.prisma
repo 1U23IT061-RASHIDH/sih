@@ -1,215 +1,210 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
-
-
 model User {
-  id        String   @id // Clerk ID
+  id        String   @id @map("_id") // Clerk ID
   email     String   @unique
   name      String?
   role      String   @default("USER") // "USER", "ADMIN"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  ecoPoints     Int      @default(0)
-  
-  passes        Pass[]
-  notifications Notification[]
-  adminLogs     AdminLog[]
+
+  ecoPoints Int @default(0)
+
+  passes          Pass[]
+  notifications   Notification[]
+  adminLogs       AdminLog[]
   parkingBookings ParkingBooking[]
-  ecoOrders     EcoStoreOrder[]
-  certificates  UserCertificate[]
+  ecoOrders       EcoStoreOrder[]
+  certificates    UserCertificate[]
   locationHistory EcoLocationHistory[]
 }
 
 model Pass {
-  id            String      @id @default(uuid())
-  userId        String
-  
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String
+
   // Basic Vehicle Info
-  vehicleNo     String
-  vehicleType   String      // "CAR", "BIKE", "BUS", "TRUCK"
-  membersCount  Int
-  visitDate     DateTime
-  
+  vehicleNo    String
+  vehicleType  String // "CAR", "BIKE", "BUS", "TRUCK"
+  membersCount Int
+  visitDate    DateTime
+
   // -- Extended Applicant Details --
-  fullName      String?
-  fatherName    String?
-  dob           DateTime?
-  gender        String?
-  mobile        String?
-  email         String?
-  address       String?     // Full permanent address
-  currentStay   String?     // Hotel/Resort info
-  
+  fullName    String?
+  fatherName  String?
+  dob         DateTime?
+  gender      String?
+  mobile      String?
+  email       String?
+  address     String? // Full permanent address
+  currentStay String? // Hotel/Resort info
+
   // -- Travel Details --
-  purpose       String?     // "TOURISM", "GOODS", etc.
+  purpose       String? // "TOURISM", "GOODS", etc.
   fromLocation  String?
   toLocation    String?
   driverName    String?
   driverLicense String?
-  
+
   // -- Documents (URLs) --
-  idProofUrl    String?
-  vehicleRcUrl  String?
-  bookingProof  String?
-  
+  idProofUrl   String?
+  vehicleRcUrl String?
+  bookingProof String?
+
   // -- Heavy Vehicle Logic --
-  isHeavyVehicle Boolean    @default(false)
-  slotId         String?    // If booked
-  
+  isHeavyVehicle Boolean @default(false)
+  slotId         String? @db.ObjectId // If booked
+
   // Status Cycle: SUBMITTED -> VERIFIED -> ACTIVE -> USED
-  status        String      @default("SUBMITTED") 
-  qrCode        String?     @unique // Null until verified? Or generated but inactive?
-  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  activatedAt   DateTime?
-  activatedBy   String?
-  
-  user          User        @relation(fields: [userId], references: [id])
-  parkingSlot   ParkingSlot?
-  bookedSlot    HeavyVehicleSlot? @relation(fields: [slotId], references: [id])
+  status String  @default("SUBMITTED")
+  qrCode String? @unique // Null until verified? Or generated but inactive?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activatedAt DateTime?
+  activatedBy String?
+
+  user            User              @relation(fields: [userId], references: [id])
+  parkingSlot     ParkingSlot?
+  bookedSlot      HeavyVehicleSlot? @relation(fields: [slotId], references: [id])
   parkingBookings ParkingBooking[]
 }
 
 model HeavyVehicleSlot {
-  id          String    @id @default(uuid())
-  date        DateTime
-  startTime   String    // "22:00"
-  endTime     String    // "05:00"
-  maxCapacity Int       @default(50)
-  currentBooked Int     @default(0)
-  status      String    @default("OPEN") // "OPEN", "CLOSED"
-  
-  passes      Pass[]
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  date          DateTime
+  startTime     String // "22:00"
+  endTime       String // "05:00"
+  maxCapacity   Int      @default(50)
+  currentBooked Int      @default(0)
+  status        String   @default("OPEN") // "OPEN", "CLOSED"
+
+  passes Pass[]
 }
 
 model ParkingSlot {
-  id          String      @id @default(uuid())
-  slotNumber  String
-  locationId  String
-  isOccupied  Boolean     @default(false)
-  type        String
-  passId      String?     @unique
-  
-  pass        Pass?       @relation(fields: [passId], references: [id])
-  location    Location    @relation(fields: [locationId], references: [id])
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  slotNumber String
+  locationId String  @db.ObjectId
+  isOccupied Boolean @default(false)
+  type       String
+  passId     String? @unique @db.ObjectId
+
+  pass     Pass?    @relation(fields: [passId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
 }
 
-// ... (previous models)
-
 model Location {
-  id              String      @id @default(uuid())
-  name            String      @unique
-  description     String?
-  latitude        Float
-  longitude       Float
-  type            String      // "PARKING", "ATTRACTION"
-  crowdThreshold  Int         @default(100)
-  currentCount    Int         @default(0)
-  
-  parkingSlots    ParkingSlot[]
-  crowdStats      CrowdStats[]
+  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  name           String  @unique
+  description    String?
+  latitude       Float
+  longitude      Float
+  type           String // "PARKING", "ATTRACTION"
+  crowdThreshold Int     @default(100)
+  currentCount   Int     @default(0)
+
+  parkingSlots      ParkingSlot[]
+  crowdStats        CrowdStats[]
   parkingFacilities ParkingFacility[] // New Relation
 }
 
 model ParkingFacility {
-  id          String   @id @default(uuid())
-  locationId  String
-  vehicleType String   // CAR, BIKE, BUS, VAN, HEAVY
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  locationId  String @db.ObjectId
+  vehicleType String // CAR, BIKE, BUS, VAN, HEAVY
   totalSlots  Int
   hourlyRate  Float
-  
-  location    Location @relation(fields: [locationId], references: [id])
-  bookings    ParkingBooking[]
-  
+
+  location Location         @relation(fields: [locationId], references: [id])
+  bookings ParkingBooking[]
+
   @@unique([locationId, vehicleType])
 }
 
 model ParkingBooking {
-  id            String   @id @default(uuid())
-  userId        String
-  passId        String?
-  facilityId    String
-  
-  bookingDate   DateTime
-  startTime     DateTime // ISO String or Date
-  endTime       DateTime
-  
-  vehicleNo     String
-  vehicleType   String
-  
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String
+  passId     String? @db.ObjectId
+  facilityId String  @db.ObjectId
+
+  bookingDate DateTime
+  startTime   DateTime // ISO String or Date
+  endTime     DateTime
+
+  vehicleNo   String
+  vehicleType String
+
   amount        Float
-  paymentStatus String   @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  paymentStatus String  @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
   paymentId     String?
-  
-  status        String   @default("BOOKED") // BOOKED, ARRIVED, COMPLETED, CANCELLED, NO_SHOW
-  
-  qrCode        String   @unique
-  
-  checkInTime   DateTime?
-  checkOutTime  DateTime?
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  user          User            @relation(fields: [userId], references: [id])
-  pass          Pass?           @relation(fields: [passId], references: [id])
-  facility      ParkingFacility @relation(fields: [facilityId], references: [id])
+
+  status String @default("BOOKED") // BOOKED, ARRIVED, COMPLETED, CANCELLED, NO_SHOW
+
+  qrCode String @unique
+
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id])
+  pass     Pass?           @relation(fields: [passId], references: [id])
+  facility ParkingFacility @relation(fields: [facilityId], references: [id])
 }
 
 model CrowdStats {
-  id          String    @id @default(uuid())
-  locationId  String
-  count       Int
-  timestamp   DateTime  @default(now())
-  
-  location    Location  @relation(fields: [locationId], references: [id])
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  locationId String   @db.ObjectId
+  count      Int
+  timestamp  DateTime @default(now())
+
+  location Location @relation(fields: [locationId], references: [id])
 }
 
 model Notification {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model AdminLog {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   adminId   String
   action    String
   timestamp DateTime @default(now())
-  
-  admin     User     @relation(fields: [adminId], references: [id])
+
+  admin User @relation(fields: [adminId], references: [id])
 }
 
-
 model SystemSettings {
-  key   String @id
+  key   String @id @map("_id")
   value String
 }
 
 model OfflineTicket {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   vehicleNo   String
   name        String
   mobile      String?
   members     Int      @default(1)
-  vehicleType String   // CAR, BUS, BIKE, EMERGENCY
-  spotId      String
-  type        String   // OFFLINE_PAID, GOVT_PASS, EMERGENCY, STAFF
+  vehicleType String // CAR, BUS, BIKE, EMERGENCY
+  spotId      String   @db.ObjectId
+  type        String // OFFLINE_PAID, GOVT_PASS, EMERGENCY, STAFF
   status      String   @default("ACTIVE") // ACTIVE, EXITED, CANCELLED
   createdBy   String   @default("admin")
   createdAt   DateTime @default(now())
@@ -219,7 +214,7 @@ model OfflineTicket {
 }
 
 model EcoScoreRule {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   actionType  String   @unique // e.g., "SHARE_LOCATION", "VISIT_HOTSPOT", "PUBLIC_TRANSPORT"
   points      Int
   description String?
@@ -227,64 +222,64 @@ model EcoScoreRule {
 }
 
 model EcoStoreProduct {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   description String?
   pricePoints Int
   priceCash   Float
-  category    String   // "Chocolates", "Tea", "Oil", "Handicrafts"
+  category    String // "Chocolates", "Tea", "Oil", "Handicrafts"
   imageUrls   String[]
   stock       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  orderItems  EcoStoreOrderItem[]
+
+  orderItems EcoStoreOrderItem[]
 }
 
 model EcoStoreOrder {
-  id            String   @id @default(uuid())
-  userId        String
-  totalPoints   Int
-  totalCash     Float
-  status        String   @default("PENDING") // PENDING, PAID, SHIPPED, COMPLETED
-  paymentId     String?  // Razorpay/Stripe
-  createdAt     DateTime @default(now())
-  
-  user          User     @relation(fields: [userId], references: [id])
-  items         EcoStoreOrderItem[]
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String
+  totalPoints Int
+  totalCash   Float
+  status      String   @default("PENDING") // PENDING, PAID, SHIPPED, COMPLETED
+  paymentId   String? // Razorpay/Stripe
+  createdAt   DateTime @default(now())
+
+  user  User                @relation(fields: [userId], references: [id])
+  items EcoStoreOrderItem[]
 }
 
 model EcoStoreOrderItem {
-  id        String          @id @default(uuid())
-  orderId   String
-  productId String
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  orderId   String @db.ObjectId
+  productId String @db.ObjectId
   quantity  Int
-  points    Int             // Points at time of purchase
-  cash      Float           // Cash at time of purchase
-  
-  order     EcoStoreOrder   @relation(fields: [orderId], references: [id])
-  product   EcoStoreProduct @relation(fields: [productId], references: [id])
+  points    Int // Points at time of purchase
+  cash      Float // Cash at time of purchase
+
+  order   EcoStoreOrder   @relation(fields: [orderId], references: [id])
+  product EcoStoreProduct @relation(fields: [productId], references: [id])
 }
 
 model UserCertificate {
-  id          String   @id @default(uuid())
-  userId      String
-  name        String   // Certificate name
-  type        String   // "VISIT", "CLEANLINESS", "GENERAL"
-  pdfUrl      String?
-  issuedAt    DateTime @default(now())
-  metadata    Json?    // Visited places, points earned etc
-  
-  user        User     @relation(fields: [userId], references: [id])
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId   String
+  name     String // Certificate name
+  type     String // "VISIT", "CLEANLINESS", "GENERAL"
+  pdfUrl   String?
+  issuedAt DateTime @default(now())
+  metadata Json? // Visited places, points earned etc
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model EcoLocationHistory {
-  id          String   @id @default(uuid())
-  userId      String
-  latitude    Float
-  longitude   Float
-  spotId      String?  // If it matches a hotspot
-  timestamp   DateTime @default(now())
-  
-  user        User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String
+  latitude  Float
+  longitude Float
+  spotId    String?  @db.ObjectId // If it matches a hotspot
+  timestamp DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
