@@ -2,24 +2,87 @@
 
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { Button } from "./ui/button";
-import { Menu, X } from "lucide-react";
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    Menu,
+    X,
+    ChevronDown,
+    MapPin,
+    Compass,
+    ParkingSquare,
+    Leaf,
+    Hotel,
+    UtensilsCrossed,
+    Glasses,
+    CloudSun,
+    ShieldAlert,
+    QrCode,
+    Sparkles,
+    LayoutDashboard,
+    FileCheck,
+    Info,
+    Globe
+} from "lucide-react";
+import { VoiceGuide } from "@/services/navigation/VoiceGuide";
 
 export default function Navbar() {
-    const [isOpen, setIsOpen] = useState(false);
-    const [lang, setLang] = useState<'EN' | 'TA'>('EN');
     const pathname = usePathname();
-    const isDashboard = pathname === '/dashboard';
-    const isLightPage = ['/hotels', '/food', '/tourism', '/eco-store', '/parking', '/validator'].includes(pathname);
-
     const { user } = useUser();
+    const [scrolled, setScrolled] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+    const [exploreOpen, setExploreOpen] = useState(false);
+    const [servicesOpen, setServicesOpen] = useState(false);
+    const [lang, setLang] = useState<'EN' | 'TA'>('EN');
     const [isAdmin, setIsAdmin] = useState(false);
 
-    const toggleLang = () => setLang(l => l === 'EN' ? 'TA' : 'EN');
+    const exploreRef = useRef<HTMLDivElement>(null);
+    const servicesRef = useRef<HTMLDivElement>(null);
 
+    // Initialize Language from localStorage & VoiceGuide
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedLang = localStorage.getItem('nilgiri_lang') as 'EN' | 'TA' | null;
+            if (savedLang === 'EN' || savedLang === 'TA') {
+                setLang(savedLang);
+                VoiceGuide.setSettings({ language: savedLang.toLowerCase() as 'en' | 'ta' });
+            }
+        }
+    }, []);
+
+    // Toggle Language with localStorage persistence and system event dispatch
+    const setLanguage = (newLang: 'EN' | 'TA') => {
+        setLang(newLang);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('nilgiri_lang', newLang);
+            VoiceGuide.setSettings({ language: newLang.toLowerCase() as 'en' | 'ta' });
+            window.dispatchEvent(new CustomEvent('nilgiri-lang-change', { detail: { lang: newLang } }));
+        }
+
+    };
+
+    const toggleLang = () => {
+        setLanguage(lang === 'EN' ? 'TA' : 'EN');
+    };
+
+    // Scroll state listener
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Close mobile menu on route change
+    useEffect(() => {
+        setIsOpen(false);
+        setExploreOpen(false);
+        setServicesOpen(false);
+    }, [pathname]);
+
+    // Check Admin Role
     useEffect(() => {
         if (!user) {
             setIsAdmin(false);
@@ -29,169 +92,582 @@ export default function Navbar() {
         fetch('/api/user/role')
             .then(res => res.json())
             .then(data => {
-                if (data.role === 'ADMIN') setIsAdmin(true);
-                else setIsAdmin(false);
+                setIsAdmin(data.role === 'ADMIN');
             })
-            .catch(err => console.error(err));
+            .catch(() => setIsAdmin(false));
     }, [user]);
 
-    const textColor = isDashboard ? 'text-orange-600' : isLightPage ? 'text-slate-700' : 'text-white/80';
-    const hoverColor = isDashboard ? 'hover:text-orange-800' : isLightPage ? 'hover:text-slate-950' : 'hover:text-white';
-    const activeColor = 'text-orange-700 font-bold underline decoration-2 underline-offset-4';
+    // Close dropdowns when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (exploreRef.current && !exploreRef.current.contains(e.target as Node)) {
+                setExploreOpen(false);
+            }
+            if (servicesRef.current && !servicesRef.current.contains(e.target as Node)) {
+                setServicesOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const isLightPage = ['/hotels', '/food', '/tourism', '/eco-store', '/parking', '/validator', '/about'].includes(pathname);
+    const isDashboard = pathname === '/dashboard';
+
+    // Theme adaptive styles
+    const navBackground = scrolled || isDashboard || isLightPage
+        ? 'bg-slate-900/90 backdrop-blur-xl border-slate-800/80 shadow-xl shadow-black/20'
+        : 'bg-slate-950/40 backdrop-blur-md border-white/10 shadow-lg shadow-black/10';
+
+    const exploreItems = [
+        {
+            href: '/tourism',
+            title: lang === 'EN' ? 'Tourist Attractions' : 'சுற்றுலா தலங்கள்',
+            desc: lang === 'EN' ? 'Top spots, gardens & peaks' : 'பிரபலமான இடங்கள் & பூங்காக்கள்',
+            icon: Compass,
+            badge: 'Popular',
+            badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+        },
+        {
+            href: '/hotels',
+            title: lang === 'EN' ? 'Hotels & Resorts' : 'ஹோட்டல்கள் & தங்குமிடம்',
+            desc: lang === 'EN' ? 'Verified eco-stays in Nilgiris' : 'சரிபார்க்கப்பட்ட சூழல் தங்குமிடங்கள்',
+            icon: Hotel
+        },
+        {
+            href: '/food',
+            title: lang === 'EN' ? 'Food & Cafes' : 'உணவகங்கள் & கஃபேக்கள்',
+            desc: lang === 'EN' ? 'Authentic Badaga & hill cuisines' : 'பாரம்பரிய மலை உணவுகள்',
+            icon: UtensilsCrossed
+        },
+        {
+            href: '/virtual-tour',
+            title: lang === 'EN' ? '360° Virtual Tour' : '360° மெய்நிகர் பயணம்',
+            desc: lang === 'EN' ? 'Immersive panoramic experience' : 'முழுமையான காட்சி அனுபவம்',
+            icon: Glasses,
+            badge: '360° VR',
+            badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+        },
+        {
+            href: '/weather',
+            title: lang === 'EN' ? 'Weather & Forecast' : 'வானிலை & பனி எச்சரிக்கை',
+            desc: lang === 'EN' ? 'Live hill temperature & fog alerts' : 'நேரலை வானிலை தகவல்கள்',
+            icon: CloudSun
+        }
+    ];
+
+    const servicesItems = [
+        {
+            href: '/parking',
+            title: lang === 'EN' ? 'Smart Parking' : 'வாகன நிறுத்துமிடம்',
+            desc: lang === 'EN' ? 'Pre-book allocated slots' : 'முன்பதிவு செய்யப்பட்ட இடங்கள்',
+            icon: ParkingSquare,
+            badge: 'Live Slots',
+            badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+        },
+        {
+            href: '/eco-store',
+            title: lang === 'EN' ? 'Eco Store & Rewards' : 'சுற்றுச்சூழல் அங்காடி',
+            desc: lang === 'EN' ? 'Redeem points for eco-goods' : 'ஈகோ புள்ளிகள் பரிசுகள்',
+            icon: Leaf,
+            badge: 'Points',
+            badgeColor: 'bg-green-500/20 text-green-300 border-green-500/30'
+        },
+        {
+            href: '/validator',
+            title: lang === 'EN' ? 'E-Pass Validator' : 'பாஸ் சரிபார்ப்பு',
+            desc: lang === 'EN' ? 'Gate checkpost scanner' : 'செக்போஸ்ட் சோதனை',
+            icon: FileCheck
+        },
+        {
+            href: '/scan',
+            title: lang === 'EN' ? 'QR Code Scanner' : 'QR ஸ்கேனர்',
+            desc: lang === 'EN' ? 'Instant offline/online pass check' : 'விரைவு சரிபார்ப்பு',
+            icon: QrCode
+        }
+    ];
+
+    const isExploreActive = exploreItems.some(item => pathname === item.href);
+    const isServicesActive = servicesItems.some(item => pathname === item.href);
 
     return (
-        <nav
-            className={`fixed top-0 left-0 w-full z-[1000] px-6 py-4 border-b transition-all duration-300 ${isDashboard ? 'shadow-md border-[#145a32]/20' : isLightPage ? 'bg-white/95 shadow-sm border-slate-200' : 'glass border-white/10'}`}
-            style={isDashboard ? {
-                backgroundImage: `linear-gradient(to bottom, rgba(232, 245, 233, 0.9), rgba(200, 230, 201, 0.95)), url('/images/nilgiri_header_bg.png')`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center bottom'
-            } : {}}
-        >
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-                <Link href="/" className="text-2xl font-bold tracking-tighter flex items-center gap-2 group">
-                    <motion.div whileHover={{ rotate: 10 }} transition={{ type: "spring", stiffness: 300 }}>
-                        {/* Logo Icon Placeholder */}
-                        <span className="text-3xl">🏔️</span>
-                    </motion.div>
-                    <span className={`${isDashboard || isLightPage ? 'text-emerald-700' : 'text-green-400'} group-hover:opacity-80 transition-opacity`}>Nilgiri</span>
-                    <span className={`${isDashboard ? 'text-orange-700' : isLightPage ? 'text-slate-700' : 'text-white/80 group-hover:text-white'} transition-colors`}>{lang === 'EN' ? 'Pass' : 'பாஸ்'}</span>
-                </Link>
+        <header className="fixed top-0 left-0 right-0 z-50 px-3 sm:px-6 py-3 transition-all duration-300">
+            <nav className={`max-w-7xl mx-auto rounded-2xl border transition-all duration-300 ${navBackground}`}>
+                <div className="px-4 sm:px-6 py-2.5 flex items-center justify-between">
 
-                {/* Desktop Menu */}
-                <div className="hidden md:flex items-center gap-8">
-                    <Link href="/dashboard">
-                        <motion.div whileHover={{ scale: 1.05 }} className={`${pathname === '/dashboard' ? activeColor : textColor} ${hoverColor} transition-colors cursor-pointer`}>
-                            {lang === 'EN' ? 'Dashboard' : 'டாஷ்போர்டு'}
-                        </motion.div>
+                    {/* Brand Logo */}
+                    <Link href="/" className="flex items-center gap-3 group">
+                        <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-700/40 border border-emerald-400/40 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                            <span className="text-xl select-none">🏔️</span>
+                            <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 opacity-0 group-hover:opacity-30 blur-sm transition-opacity duration-300" />
+                        </div>
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5 leading-none">
+                                <span className="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-emerald-200 bg-clip-text text-transparent">
+                                    Nilgiri
+                                </span>
+                                <span className="text-xs sm:text-sm font-semibold text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded-md border border-emerald-500/30">
+                                    {lang === 'EN' ? 'E-Pass' : 'இ-பாஸ்'}
+                                </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-medium tracking-wide mt-0.5">
+                                {lang === 'EN' ? 'Govt. of Tamil Nadu' : 'தமிழ்நாடு அரசு'}
+                            </span>
+                        </div>
                     </Link>
-                    <Link href="/parking">
-                        <motion.div whileHover={{ scale: 1.05 }} className={`${pathname === '/parking' ? activeColor : textColor} ${hoverColor} transition-colors cursor-pointer`}>
-                            {lang === 'EN' ? 'Parking' : 'வாகன நிறுத்தம்'}
-                        </motion.div>
-                    </Link>
-                    <Link href="/eco-store">
-                        <motion.div whileHover={{ scale: 1.05 }} className={`${pathname === '/eco-store' ? activeColor : textColor} ${hoverColor} transition-colors cursor-pointer font-bold ${isDashboard ? 'text-orange-600' : 'text-emerald-400'}`}>
-                            {lang === 'EN' ? 'Eco Store' : 'ஈகோ ஸ்டோர்'}
-                        </motion.div>
-                    </Link>
-                    <Link href="/tourism">
-                        <motion.div whileHover={{ scale: 1.05 }} className={`${pathname === '/tourism' ? activeColor : textColor} ${hoverColor} transition-colors cursor-pointer`}>
-                            {lang === 'EN' ? 'Tourism' : 'சுற்றுலா'}
-                        </motion.div>
-                    </Link>
-                    <Link href="/hotels">
-                        <motion.div whileHover={{ scale: 1.05 }} className={`${pathname === '/hotels' ? activeColor : textColor} ${hoverColor} transition-colors cursor-pointer`}>
-                            Hotels &amp; Rooms
-                        </motion.div>
-                    </Link>
-                    <Link href="/food">
-                        <motion.div whileHover={{ scale: 1.05 }} className={`${pathname === '/food' ? activeColor : textColor} ${hoverColor} transition-colors cursor-pointer`}>
-                            Food &amp; Restaurants
-                        </motion.div>
-                    </Link>
-                    {isAdmin && (
-                        <Link href="/admin">
-                            <motion.div whileHover={{ scale: 1.05 }} className={`${isDashboard ? 'text-orange-600 border-orange-600/30 bg-orange-600/10' : 'text-red-400 border-red-500/30 bg-red-500/10'} hover:opacity-80 font-bold transition-all cursor-pointer border px-2 py-1 rounded`}>
-                                {lang === 'EN' ? 'ADMIN PANEL' : 'நிர்வாகம்'}
-                            </motion.div>
+
+                    {/* Desktop Navigation Links */}
+                    <div className="hidden lg:flex items-center gap-1 xl:gap-2">
+
+                        {/* Dashboard */}
+                        <Link
+                            href="/dashboard"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${pathname === '/dashboard'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-950'
+                                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <LayoutDashboard className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>{lang === 'EN' ? 'Dashboard' : 'டாஷ்போர்டு'}</span>
                         </Link>
-                    )}
-                    <Link href="/map">
-                        <div className={`flex items-center gap-1 text-xs font-mono border px-2 py-1 rounded cursor-help ${isDashboard ? 'text-orange-600 border-orange-600/30 bg-orange-600/5' : 'text-orange-400 border-orange-500/30 bg-orange-500/10'}`} title="Live Validator Active">
-                            <span className="animate-pulse">●</span> Crowd Density
-                        </div>
-                    </Link>
-                    <Link href="/map">
-                        <motion.div whileHover={{ scale: 1.05 }} className={`${pathname === '/map' ? activeColor : textColor} ${hoverColor} transition-colors cursor-pointer`}>
-                            {lang === 'EN' ? 'Smart Map' : 'வரைபடம்'}
-                        </motion.div>
-                    </Link>
-                    <Link href="/validator">
-                        <motion.div whileHover={{ scale: 1.05 }} className={`${isDashboard ? 'text-orange-600' : 'text-purple-400 hover:text-purple-300'} transition-colors cursor-pointer font-bold flex items-center gap-1`}>
-                            <span className="text-lg">🎫</span>
-                            {lang === 'EN' ? 'Validator' : 'டிக்கெட்'}
-                        </motion.div>
-                    </Link>
-                    <Link href="/about">
-                        <motion.div whileHover={{ scale: 1.05 }} className={`${pathname === '/about' ? activeColor : textColor} ${hoverColor} transition-colors cursor-pointer`}>
-                            About
-                        </motion.div>
-                    </Link>
-                    <button onClick={toggleLang} className={`${textColor} ${hoverColor} transition-colors font-mono border ${isDashboard ? 'border-orange-600/20' : 'border-white/20'} rounded px-2 py-1 text-xs`}>
-                        {lang === 'EN' ? 'TA' : 'EN'}
-                    </button>
 
-                    <SignedOut>
-                        <div className="flex gap-4">
-                            <SignInButton mode="modal">
-                                <Button variant="glass" className={`py-2 px-4 text-sm ${isDashboard ? 'text-orange-600 border-orange-600/20 hover:bg-orange-600/5' : ''}`}>Login</Button>
-                            </SignInButton>
-                            <SignUpButton mode="modal">
-                                <Button variant="primary" className="py-2 px-4 text-sm bg-green-500/20 hover:bg-green-500/30 border-green-400/30">Register</Button>
-                            </SignUpButton>
+                        {/* Apply Pass */}
+                        <Link
+                            href="/apply"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${pathname === '/apply'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                            <span>{lang === 'EN' ? 'Apply Pass' : 'பாஸ் பெறுக'}</span>
+                        </Link>
+
+                        {/* Smart Map */}
+                        <Link
+                            href="/map"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${pathname === '/map'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <MapPin className="w-3.5 h-3.5 text-rose-400" />
+                            <span>{lang === 'EN' ? 'Smart Map' : 'ஸ்மார்ட் மேப்'}</span>
+                        </Link>
+
+                        {/* Explore Dropdown */}
+                        <div className="relative" ref={exploreRef}>
+                            <button
+                                onClick={() => {
+                                    setExploreOpen(!exploreOpen);
+                                    setServicesOpen(false);
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${isExploreActive || exploreOpen
+                                        ? 'bg-white/10 text-white border border-white/20'
+                                        : 'text-slate-300 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                <Compass className="w-3.5 h-3.5 text-teal-400" />
+                                <span>{lang === 'EN' ? 'Explore' : 'சுற்றுலா'}</span>
+                                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${exploreOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            <AnimatePresence>
+                                {exploreOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                                        transition={{ duration: 0.15, ease: "easeOut" }}
+                                        className="absolute top-full left-0 mt-2 w-72 p-2 bg-slate-900/95 backdrop-blur-2xl rounded-2xl border border-slate-800 shadow-2xl shadow-black/60 z-50"
+                                    >
+                                        <div className="space-y-1">
+                                            {exploreItems.map((item) => {
+                                                const Icon = item.icon;
+                                                const isActive = pathname === item.href;
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        className={`flex items-start gap-3 p-2.5 rounded-xl transition-all ${isActive
+                                                                ? 'bg-emerald-500/20 border border-emerald-500/30 text-white'
+                                                                : 'hover:bg-white/5 text-slate-200 hover:text-white'
+                                                            }`}
+                                                    >
+                                                        <div className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/60 text-emerald-400 mt-0.5">
+                                                            <Icon className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-xs font-bold leading-snug">{item.title}</span>
+                                                                {item.badge && (
+                                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold border ${item.badgeColor}`}>
+                                                                        {item.badge}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[11px] text-slate-400 truncate mt-0.5">{item.desc}</p>
+                                                        </div>
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
-                    </SignedOut>
-                    <SignedIn>
-                        <UserButton
-                            appearance={{
-                                elements: {
-                                    avatarBox: `w-10 h-10 border-2 ${isDashboard ? 'border-orange-600/20' : 'border-white/20'}`
-                                }
-                            }}
-                        />
-                    </SignedIn>
+
+                        {/* Services Dropdown */}
+                        <div className="relative" ref={servicesRef}>
+                            <button
+                                onClick={() => {
+                                    setServicesOpen(!servicesOpen);
+                                    setExploreOpen(false);
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${isServicesActive || servicesOpen
+                                        ? 'bg-white/10 text-white border border-white/20'
+                                        : 'text-slate-300 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                <ParkingSquare className="w-3.5 h-3.5 text-blue-400" />
+                                <span>{lang === 'EN' ? 'Services' : 'சேவைகள்'}</span>
+                                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${servicesOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            <AnimatePresence>
+                                {servicesOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                                        transition={{ duration: 0.15, ease: "easeOut" }}
+                                        className="absolute top-full left-0 mt-2 w-72 p-2 bg-slate-900/95 backdrop-blur-2xl rounded-2xl border border-slate-800 shadow-2xl shadow-black/60 z-50"
+                                    >
+                                        <div className="space-y-1">
+                                            {servicesItems.map((item) => {
+                                                const Icon = item.icon;
+                                                const isActive = pathname === item.href;
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        className={`flex items-start gap-3 p-2.5 rounded-xl transition-all ${isActive
+                                                                ? 'bg-emerald-500/20 border border-emerald-500/30 text-white'
+                                                                : 'hover:bg-white/5 text-slate-200 hover:text-white'
+                                                            }`}
+                                                    >
+                                                        <div className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/60 text-emerald-400 mt-0.5">
+                                                            <Icon className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-xs font-bold leading-snug">{item.title}</span>
+                                                                {item.badge && (
+                                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold border ${item.badgeColor}`}>
+                                                                        {item.badge}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[11px] text-slate-400 truncate mt-0.5">{item.desc}</p>
+                                                        </div>
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* About */}
+                        <Link
+                            href="/about"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${pathname === '/about'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <Info className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{lang === 'EN' ? 'About' : 'பற்றி'}</span>
+                        </Link>
+
+                        {/* Admin Badge if Admin */}
+                        {isAdmin && (
+                            <Link
+                                href="/admin"
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition-all shadow-sm"
+                            >
+                                <ShieldAlert className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+                                <span>ADMIN</span>
+                            </Link>
+                        )}
+                    </div>
+
+                    {/* Right Controls & Auth */}
+                    <div className="hidden lg:flex items-center gap-3">
+
+                        {/* Live Traffic Density Pill */}
+                        <Link
+                            href="/map"
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-medium text-emerald-300 hover:bg-emerald-900/40 transition-colors shadow-inner"
+                            title="Live traffic shaping active"
+                        >
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span>Live Traffic</span>
+                        </Link>
+
+                        {/* Premium Dual Language Selector Capsule */}
+                        <div className="flex items-center p-0.5 rounded-xl bg-slate-800/90 border border-slate-700/80 shadow-inner">
+                            <button
+                                onClick={() => setLanguage('EN')}
+                                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all ${lang === 'EN'
+                                        ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                        : 'text-slate-400 hover:text-slate-200'
+                                    }`}
+                                title="English"
+                            >
+                                <span>EN</span>
+                            </button>
+                            <button
+                                onClick={() => setLanguage('TA')}
+                                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all ${lang === 'TA'
+                                        ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                        : 'text-slate-400 hover:text-slate-200'
+                                    }`}
+                                title="தமிழ் (Tamil)"
+                            >
+                                <span>தமிழ்</span>
+                            </button>
+                        </div>
+
+                        {/* Clerk Authentication */}
+                        <SignedOut>
+                            <div className="flex items-center gap-2">
+                                <SignInButton mode="modal">
+                                    <button className="px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white bg-slate-800/60 hover:bg-slate-700/70 border border-slate-700/80 rounded-xl transition-all">
+                                        {lang === 'EN' ? 'Sign In' : 'உள்நுழைக'}
+                                    </button>
+                                </SignInButton>
+                                <SignUpButton mode="modal">
+                                    <button className="px-3.5 py-1.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 rounded-xl shadow-md shadow-emerald-950 transition-all hover:scale-105 active:scale-95">
+                                        {lang === 'EN' ? 'Register' : 'பதிவு செய்க'}
+                                    </button>
+                                </SignUpButton>
+                            </div>
+                        </SignedOut>
+
+                        <SignedIn>
+                            <div className="flex items-center gap-2 pl-1">
+                                <UserButton
+                                    appearance={{
+                                        elements: {
+                                            avatarBox: 'w-8 h-8 rounded-xl border border-emerald-500/40 shadow-sm',
+                                            userButtonPopoverCard: 'bg-slate-900 border border-slate-800 shadow-2xl text-slate-100'
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </SignedIn>
+                    </div>
+
+                    {/* Mobile Menu Button & Language */}
+                    <div className="flex items-center gap-2 lg:hidden">
+                        <div className="flex items-center p-0.5 rounded-lg bg-slate-800 border border-slate-700 text-xs">
+                            <button
+                                onClick={() => setLanguage('EN')}
+                                className={`px-1.5 py-0.5 rounded font-bold ${lang === 'EN' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400'}`}
+                            >
+                                EN
+                            </button>
+                            <button
+                                onClick={() => setLanguage('TA')}
+                                className={`px-1.5 py-0.5 rounded font-bold ${lang === 'TA' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400'}`}
+                            >
+                                தமிழ்
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            className="p-2 rounded-xl bg-slate-800/80 border border-slate-700/80 text-slate-200 hover:text-white transition-colors"
+                            aria-label="Toggle navigation"
+                        >
+                            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                        </button>
+                    </div>
+
                 </div>
 
-                {/* Mobile Toggle */}
-                <button onClick={() => setIsOpen(!isOpen)} className={`md:hidden p-2 ${isDashboard ? 'text-orange-600' : isLightPage ? 'text-slate-800' : 'text-white'}`}>
-                    {isOpen ? <X size={24} /> : <Menu size={24} />}
-                </button>
-            </div>
+                {/* Mobile Drawer Sheet */}
+                <AnimatePresence>
+                    {isOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden border-t border-slate-800/80 bg-slate-900/98 backdrop-blur-2xl rounded-b-2xl"
+                        >
+                            <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto">
 
-            {/* Mobile Menu */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className={`md:hidden overflow-hidden backdrop-blur-xl border-t ${isDashboard
-                            ? 'bg-orange-50/95 border-orange-600/10'
-                            : isLightPage ? 'bg-white border-slate-200' : 'bg-[#0f3b28]/95 border-white/10'
-                            }`}
-                    >
-                        <div className="p-4 flex flex-col gap-4">
-                            <Link href="/dashboard" className={`block ${isDashboard ? 'text-orange-600 hover:bg-orange-600/5' : isLightPage ? 'text-slate-800 hover:bg-slate-100' : 'text-emerald-400 hover:bg-white/5'} py-2 rounded px-2`}>Dashboard</Link>
-                            <Link href="/parking" className={`block ${isDashboard ? 'text-orange-600 hover:bg-orange-600/5' : isLightPage ? 'text-slate-800 hover:bg-slate-100' : 'text-white/90 hover:bg-white/5'} py-2 rounded px-2`}>Parking</Link>
-                            <Link href="/eco-store" className={`block ${isDashboard ? 'text-orange-600 hover:bg-orange-600/5' : isLightPage ? 'text-slate-800 hover:bg-slate-100' : 'text-white/90 hover:bg-white/5'} py-2 rounded px-2`}>Eco Store</Link>
-                            <Link href="/tourism" className={`block ${isDashboard ? 'text-orange-600 hover:bg-orange-600/5' : isLightPage ? 'text-slate-800 hover:bg-slate-100' : 'text-white/90 hover:bg-white/5'} py-2 rounded px-2`}>Tourism</Link>
-                            <Link href="/hotels" className={`block ${isDashboard ? 'text-orange-600 hover:bg-orange-600/5' : isLightPage ? 'text-slate-800 hover:bg-slate-100' : 'text-white/90 hover:bg-white/5'} py-2 rounded px-2`}>Hotels &amp; Rooms</Link>
-                            <Link href="/food" className={`block ${isDashboard ? 'text-orange-600 hover:bg-orange-600/5' : isLightPage ? 'text-slate-800 hover:bg-slate-100' : 'text-white/90 hover:bg-white/5'} py-2 rounded px-2`}>Food &amp; Restaurants</Link>
-                            {isAdmin && <Link href="/admin" className={`block ${isDashboard ? 'text-orange-600' : 'text-red-400'} font-bold py-2 hover:bg-black/5 rounded px-2`}>ADMIN PANEL</Link>}
-                            <Link href="/map" className={`block ${isDashboard ? 'text-orange-600 hover:bg-orange-600/5' : isLightPage ? 'text-slate-800 hover:bg-slate-100' : 'text-white/90 hover:bg-white/5'} py-2 rounded px-2`}>Smart Map</Link>
-                            <div className={`pt-2 border-t mt-2 ${isDashboard ? 'border-orange-600/10' : 'border-white/10'}`}>
-                                <SignedOut>
-                                    <div className="flex flex-col gap-3">
-                                        <SignInButton mode="modal">
-                                            <Button variant="glass" className={`w-full justify-center ${isDashboard ? 'text-orange-600 border-orange-600/20' : ''}`}>Sign In</Button>
-                                        </SignInButton>
-                                        <SignUpButton mode="modal">
-                                            <Button variant="primary" className="w-full justify-center">Register</Button>
-                                        </SignUpButton>
+                                {/* Quick Primary Links */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Link
+                                        href="/dashboard"
+                                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all ${pathname === '/dashboard'
+                                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                                : 'bg-slate-800/60 border-slate-700/60 text-slate-200'
+                                            }`}
+                                    >
+                                        <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+                                        <span>Dashboard</span>
+                                    </Link>
+                                    <Link
+                                        href="/apply"
+                                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all ${pathname === '/apply'
+                                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                                : 'bg-slate-800/60 border-slate-700/60 text-slate-200'
+                                            }`}
+                                    >
+                                        <Sparkles className="w-4 h-4 text-amber-400" />
+                                        <span>Apply Pass</span>
+                                    </Link>
+                                    <Link
+                                        href="/map"
+                                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all ${pathname === '/map'
+                                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                                : 'bg-slate-800/60 border-slate-700/60 text-slate-200'
+                                            }`}
+                                    >
+                                        <MapPin className="w-4 h-4 text-rose-400" />
+                                        <span>Smart Map</span>
+                                    </Link>
+                                    <Link
+                                        href="/parking"
+                                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all ${pathname === '/parking'
+                                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                                : 'bg-slate-800/60 border-slate-700/60 text-slate-200'
+                                            }`}
+                                    >
+                                        <ParkingSquare className="w-4 h-4 text-blue-400" />
+                                        <span>Parking</span>
+                                    </Link>
+                                </div>
+
+                                {/* Explore Section */}
+                                <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+                                        {lang === 'EN' ? 'Explore Nilgiris' : 'சுற்றுலா இடங்கள்'}
                                     </div>
-                                </SignedOut>
-                                <SignedIn>
-                                    <div className="flex items-center gap-4 py-2">
-                                        <UserButton />
-                                        <span className={`${isDashboard ? 'text-orange-600/70' : 'text-white/70'} text-sm`}>Manage Account</span>
+                                    <div className="space-y-1">
+                                        {exploreItems.map((item) => {
+                                            const Icon = item.icon;
+                                            return (
+                                                <Link
+                                                    key={item.href}
+                                                    href={item.href}
+                                                    className="flex items-center justify-between p-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-2.5">
+                                                        <Icon className="w-4 h-4 text-emerald-400" />
+                                                        <span>{item.title}</span>
+                                                    </div>
+                                                    {item.badge && (
+                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold border ${item.badgeColor}`}>
+                                                            {item.badge}
+                                                        </span>
+                                                    )}
+                                                </Link>
+                                            );
+                                        })}
                                     </div>
-                                </SignedIn>
+                                </div>
+
+                                {/* Services Section */}
+                                <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+                                        {lang === 'EN' ? 'Travel Services' : 'சேவைகள்'}
+                                    </div>
+                                    <div className="space-y-1">
+                                        {servicesItems.map((item) => {
+                                            const Icon = item.icon;
+                                            return (
+                                                <Link
+                                                    key={item.href}
+                                                    href={item.href}
+                                                    className="flex items-center justify-between p-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-2.5">
+                                                        <Icon className="w-4 h-4 text-emerald-400" />
+                                                        <span>{item.title}</span>
+                                                    </div>
+                                                    {item.badge && (
+                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold border ${item.badgeColor}`}>
+                                                            {item.badge}
+                                                        </span>
+                                                    )}
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Admin Portal (if Admin) */}
+                                {isAdmin && (
+                                    <div className="pt-2 border-t border-slate-800">
+                                        <Link
+                                            href="/admin"
+                                            className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold justify-center"
+                                        >
+                                            <ShieldAlert className="w-4 h-4 text-rose-400" />
+                                            <span>ADMIN CONTROL PANEL</span>
+                                        </Link>
+                                    </div>
+                                )}
+
+                                {/* User / Auth Area */}
+                                <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+                                    <SignedOut>
+                                        <div className="grid grid-cols-2 gap-2 w-full">
+                                            <SignInButton mode="modal">
+                                                <button className="w-full py-2 text-xs font-bold text-slate-200 bg-slate-800 border border-slate-700 rounded-xl">
+                                                    Sign In
+                                                </button>
+                                            </SignInButton>
+                                            <SignUpButton mode="modal">
+                                                <button className="w-full py-2 text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-300 rounded-xl shadow">
+                                                    Register
+                                                </button>
+                                            </SignUpButton>
+                                        </div>
+                                    </SignedOut>
+
+                                    <SignedIn>
+                                        <div className="flex items-center justify-between w-full p-2 bg-slate-800/60 rounded-xl border border-slate-700/60">
+                                            <div className="flex items-center gap-3">
+                                                <UserButton />
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-white">
+                                                        {user?.fullName || user?.primaryEmailAddress?.emailAddress || 'User Account'}
+                                                    </span>
+                                                    <span className="text-[10px] text-emerald-400 font-medium">Logged In</span>
+                                                </div>
+                                            </div>
+                                            <Link href="/about" className="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+                                                <Info className="w-3.5 h-3.5" />
+                                                <span>About</span>
+                                            </Link>
+                                        </div>
+                                    </SignedIn>
+                                </div>
+
                             </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </nav >
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </nav>
+        </header>
     );
 }

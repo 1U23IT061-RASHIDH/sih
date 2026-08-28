@@ -262,7 +262,7 @@ function ParkingBookingContent() {
                                             className={`input-field ${selectedPassId ? 'bg-gray-100 cursor-not-allowed opacity-70' : ''}`}
                                             value={date}
                                             readOnly={!!selectedPassId}
-                                            min={new Date().toLocaleDateString('fr-CA')}
+                                            min={date || undefined}
                                             onChange={(e) => setDate(e.target.value)}
                                         />
                                     </div>
@@ -326,29 +326,6 @@ function ParkingBookingContent() {
                     </div>
                 </div>
             </div>
-            <style jsx global>{`
-                .input-field {
-                    width: 100%;
-                    background: #f9fafb; /* bg-gray-50 */
-                    border: 1px solid #e5e7eb; /* border-gray-200 */
-                    border-radius: 0.5rem;
-                    padding: 0.75rem;
-                    color: #111827; /* text-gray-900 */
-                    outline: none;
-                    transition: all 0.2s;
-                }
-                .input-field:focus {
-                    border-color: #15803d; /* green-700 */
-                    background: #ffffff;
-                    box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.1);
-                }
-                .input-field::placeholder {
-                    color: #9ca3af; /* text-gray-400 */
-                }
-                input[type="date"], input[type="time"] {
-                    color-scheme: light;
-                }
-            `}</style>
         </>
     );
 }

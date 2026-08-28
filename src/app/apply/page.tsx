@@ -206,34 +206,6 @@ export default function ApplyPass() {
                     </form>
                 </motion.div>
             </div>
-            <style jsx global>{`
-                .input-field {
-                    width: 100%;
-                    background: #f9fafb; /* bg-gray-50 */
-                    border: 1px solid #e5e7eb; /* border-gray-200 */
-                    border-radius: 0.5rem;
-                    padding: 0.75rem;
-                    color: #111827; /* text-gray-900 */
-                    outline: none;
-                    transition: all 0.2s;
-                }
-                .input-field:focus {
-                    border-color: #15803d; /* green-700 */
-                    background: #ffffff;
-                    box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.1);
-                }
-                .input-field::placeholder {
-                    color: #9ca3af; /* text-gray-400 */
-                }
-                .input-field option {
-                    background: white;
-                    color: #111827;
-                }
-                /* Date Input fix for gray background */
-                input[type="date"] {
-                    color-scheme: light;
-                }
-            `}</style>
         </>
     );
 }
