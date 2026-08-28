@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import QRCode from "qrcode";
 import { Car, Calendar, Users, MapPin, CheckCircle, Clock, AlertTriangle, Download, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -71,33 +71,22 @@ export default function ActivePassDisplay({ initialPass }: { initialPass: any })
             setDownloading(true);
             try {
                 // Wait for high-res assets
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 400));
 
-                const canvas = await html2canvas(element, {
-                    scale: 3,
-                    useCORS: true,
+                const dataUrl = await toPng(element, {
+                    quality: 0.95,
+                    pixelRatio: 2,
                     backgroundColor: '#ffffff',
-                    logging: false,
-                    onclone: (clonedDoc) => {
-                        const el = clonedDoc.getElementById('capture-pass-element');
-                        if (el) {
-                            el.style.position = 'static';
-                            el.style.left = '0';
-                            el.style.top = '0';
-                            el.style.visibility = 'visible';
-                            el.style.display = 'block';
-                        }
-                    }
+                    cacheBust: true,
                 });
 
-                const dataUrl = canvas.toDataURL('image/png');
                 if (dataUrl && dataUrl.length > 1000) {
                     const link = document.createElement('a');
                     link.download = `Nilgiris-EPass-${pass.vehicleNo}.png`;
                     link.href = dataUrl;
                     link.click();
                 } else {
-                    throw new Error("Canvas generation returned empty image");
+                    throw new Error("Image generation returned empty data");
                 }
             } catch (err) {
                 console.error("Capture failed:", err);

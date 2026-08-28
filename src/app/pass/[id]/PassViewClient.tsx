@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Download, Share2, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
-import html2canvas from "html2canvas";
+import { toPng, toBlob } from "html-to-image";
 
 export default function PassViewClient({ pass }: { pass: any }) {
     const [qrUrl, setQrUrl] = useState('');
@@ -27,27 +27,16 @@ export default function PassViewClient({ pass }: { pass: any }) {
         if (element) {
             try {
                 // Wait for high-res assets to paint
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 400));
 
-                const canvas = await html2canvas(element, {
-                    scale: 3,
-                    useCORS: true,
+                const dataUrl = await toPng(element, {
+                    quality: 0.95,
+                    pixelRatio: 2,
                     backgroundColor: '#ffffff',
-                    logging: false,
-                    onclone: (clonedDoc) => {
-                        const el = clonedDoc.getElementById('pass-capture-container');
-                        if (el) {
-                            el.style.position = 'static';
-                            el.style.left = '0';
-                            el.style.top = '0';
-                            el.style.visibility = 'visible';
-                            el.style.display = 'block';
-                        }
-                    }
+                    cacheBust: true,
                 });
 
-                const dataUrl = canvas.toDataURL('image/png');
-                if (dataUrl && dataUrl.length > 2000) {
+                if (dataUrl && dataUrl.length > 1000) {
                     const link = document.createElement('a');
                     link.href = dataUrl;
                     link.download = `Nilgiri-E-Pass-${pass.vehicleNo}.png`;
@@ -66,25 +55,13 @@ export default function PassViewClient({ pass }: { pass: any }) {
         const element = document.getElementById('pass-capture-container');
         if (element) {
             try {
-                await new Promise(r => setTimeout(r, 1000));
-                const canvas = await html2canvas(element, {
-                    scale: 2,
-                    useCORS: true,
+                await new Promise(r => setTimeout(r, 400));
+                const blob = await toBlob(element, {
+                    quality: 0.95,
+                    pixelRatio: 2,
                     backgroundColor: '#ffffff',
-                    logging: false,
-                    onclone: (clonedDoc) => {
-                        const el = clonedDoc.getElementById('pass-capture-container');
-                        if (el) {
-                            el.style.position = 'static';
-                            el.style.left = '0';
-                            el.style.top = '0';
-                            el.style.visibility = 'visible';
-                            el.style.display = 'block';
-                        }
-                    }
+                    cacheBust: true,
                 });
-
-                const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/png'));
 
                 if (blob) {
                     const file = new File([blob], `pass-${pass.vehicleNo}.png`, { type: 'image/png' });
