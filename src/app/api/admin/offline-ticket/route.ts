@@ -71,13 +71,20 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
     try {
         const body = await request.json();
-        const { id, source } = body;
+        const { id, source, action } = body;
 
         if (!id) {
             return NextResponse.json({ error: 'Missing ID' }, { status: 400 });
         }
 
-        const ticket = await OfflineTicketService.markExit(id, source);
+        let ticket;
+        if (action === 'reject') {
+            ticket = await OfflineTicketService.cancelTicket(id, source);
+        } else {
+            // Default to markExit for 'approve' or existing calls
+            ticket = await OfflineTicketService.markExit(id, source);
+        }
+        
         return NextResponse.json({ success: true, ticket });
 
     } catch (error: any) {

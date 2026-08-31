@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, CheckCircle, XCircle, Clock, MapPin, User, Car as CarIcon, Loader2 } from 'lucide-react';
 
 export const TicketVerifier: React.FC = () => {
@@ -7,6 +7,21 @@ export const TicketVerifier: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [ticket, setTicket] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+    const [allTickets, setAllTickets] = useState<any[]>([]);
+
+    const fetchAllTickets = async () => {
+        try {
+            const res = await fetch('/api/admin/offline-ticket');
+            const data = await res.json();
+            setAllTickets(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Failed to fetch tickets", err);
+        }
+    };
+
+    useEffect(() => {
+        fetchAllTickets();
+    }, []);
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,21 +49,29 @@ export const TicketVerifier: React.FC = () => {
 
     const handleExit = async () => {
         if (!ticket) return;
+        await handleAction(ticket, 'approve');
+    };
+
+    const handleAction = async (t: any, action: 'approve' | 'reject') => {
         setLoading(true);
         try {
             const res = await fetch('/api/admin/offline-ticket', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: ticket.id, source: ticket.source })
+                body: JSON.stringify({ id: t.id, source: t.source || 'OFFLINE', action })
             });
             const data = await res.json();
             if (data.success) {
-                setTicket(data.ticket);
+                // update local state
+                setAllTickets(prev => prev.map(item => item.id === t.id ? { ...item, status: data.ticket.status } : item));
+                if (ticket && ticket.id === data.ticket.id) {
+                    setTicket(data.ticket);
+                }
             } else {
-                setError(data.error || "Failed to mark exit.");
+                setError(data.error || `Failed to ${action} ticket.`);
             }
         } catch (err) {
-            setError("Error updating status.");
+            setError(`Error updating status.`);
         } finally {
             setLoading(false);
         }
@@ -180,6 +203,67 @@ export const TicketVerifier: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Table for all issued tickets */}
+            <div className="mt-8 border-t border-slate-200 pt-6">
+                <h4 className="font-bold text-slate-800 mb-4">All Issued Tickets</h4>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-xs">
+                                <th className="p-3 font-bold">Vehicle No</th>
+                                <th className="p-3 font-bold">Spot</th>
+                                <th className="p-3 font-bold">Type</th>
+                                <th className="p-3 font-bold">Status</th>
+                                <th className="p-3 font-bold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {allTickets.map((t) => (
+                                <tr key={t.id} className="hover:bg-slate-50 transition">
+                                    <td className="p-3 font-mono font-bold text-slate-800">{t.vehicleNo}</td>
+                                    <td className="p-3 text-slate-600">{t.spotId}</td>
+                                    <td className="p-3">
+                                        <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold">
+                                            {t.type}
+                                        </span>
+                                    </td>
+                                    <td className="p-3">
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${getStatusColor(t.status)}`}>
+                                            {t.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-3 text-right">
+                                        {isActive(t.status) && (
+                                            <div className="flex gap-2 justify-end">
+                                                <button
+                                                    onClick={() => handleAction(t, 'approve')}
+                                                    className="px-3 py-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded font-bold transition"
+                                                    disabled={loading}
+                                                >
+                                                    Approve
+                                                </button>
+                                                <button
+                                                    onClick={() => handleAction(t, 'reject')}
+                                                    className="px-3 py-1 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded font-bold transition"
+                                                    disabled={loading}
+                                                >
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {allTickets.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="p-4 text-center text-slate-500">No tickets found.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 };

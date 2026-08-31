@@ -203,7 +203,7 @@ model OfflineTicket {
   mobile      String?
   members     Int      @default(1)
   vehicleType String // CAR, BUS, BIKE, EMERGENCY
-  spotId      String   @db.ObjectId
+  spotId      String
   type        String // OFFLINE_PAID, GOVT_PASS, EMERGENCY, STAFF
   status      String   @default("ACTIVE") // ACTIVE, EXITED, CANCELLED
   createdBy   String   @default("admin")

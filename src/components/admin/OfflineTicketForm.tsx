@@ -23,6 +23,20 @@ export const OfflineTicketForm: React.FC<{ onSuccess: () => void }> = ({ onSucce
         setMessage(null);
 
         try {
+            // Frontend Validation
+            if (!form.vehicleNo || form.vehicleNo.trim().length < 2) {
+                throw new Error("Vehicle Number must be at least 2 characters.");
+            }
+            if (!form.name || form.name.trim().length < 2) {
+                throw new Error("Driver Name must be at least 2 characters.");
+            }
+            if (Number.isNaN(form.members) || form.members < 1) {
+                throw new Error("Members must be a valid number of at least 1.");
+            }
+            if (!form.spotId) {
+                throw new Error("Please select a parking location.");
+            }
+
             const res = await fetch('/api/admin/offline-ticket', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -111,7 +125,7 @@ export const OfflineTicketForm: React.FC<{ onSuccess: () => void }> = ({ onSucce
                             type="number"
                             min="1"
                             className="w-full p-3 border-2 border-slate-300 bg-white text-slate-900 rounded-lg outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
-                            value={form.members}
+                            value={Number.isNaN(form.members) ? '' : form.members}
                             onChange={e => setForm({ ...form, members: parseInt(e.target.value) })}
                         />
                     </div>

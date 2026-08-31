@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import { useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Info, MapPin, Volume2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,21 +14,21 @@ const SCENES = [
     {
         id: 'ooty-lake',
         name: 'Ooty Lake',
-        image: 'https://images.unsplash.com/photo-1559827291-72ee739d0d9a?auto=format&fit=crop&q=80&w=1920',
+        image: '/images/vitual-tour/ooty-lake.jpg',
         audio: 'Welcome to Ooty Lake. This artificial lake was constructed in 1824.',
         hotspots: [{ x: 30, y: 40, label: 'Boat House' }, { x: 70, y: 60, label: 'Deer Park' }]
     },
     {
         id: 'doddabetta',
         name: 'Doddabetta Peak',
-        image: 'https://images.unsplash.com/photo-1628163539524-ec4081c738c6?auto=format&fit=crop&q=80&w=1920',
+        image: '/images/vitual-tour/doddabetta.jpg',
         audio: 'Standing at 2,637 meters, this is the highest point in the Nilgiris.',
         hotspots: [{ x: 50, y: 30, label: 'Telescope House' }, { x: 20, y: 50, label: 'View Point' }]
     },
     {
         id: 'botanical',
         name: 'Botanical Garden',
-        image: 'https://images.unsplash.com/photo-1585827552668-d0728b355e3d?auto=format&fit=crop&q=80&w=1920',
+        image: '/images/vitual-tour/botanical-ooty.jpg',
         audio: 'Established in 1848, these gardens sprawl over 55 hectares.',
         hotspots: [{ x: 40, y: 70, label: 'Glass House' }, { x: 80, y: 40, label: 'Fossil Tree' }]
     }
@@ -50,9 +51,13 @@ export default function VirtualTourPage() {
                     transition={{ duration: 1 }}
                     className="absolute inset-0 z-0"
                 >
-                    <div
-                        className="w-full h-full bg-cover bg-center"
-                        style={{ backgroundImage: `url(${currentScene.image})` }}
+                    <Image
+                        src={currentScene.image}
+                        alt={currentScene.name}
+                        fill
+                        priority
+                        className="object-cover object-center"
+                        sizes="100vw"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40" />
                 </motion.div>
@@ -135,8 +140,15 @@ export default function VirtualTourPage() {
                                     onClick={() => setCurrentScene(scene)}
                                     className={`relative flex-shrink-0 w-32 h-20 rounded-xl overflow-hidden border-2 transition-all ${currentScene.id === scene.id ? 'border-green-400 scale-105 shadow-lg shadow-green-900/50' : 'border-white/20 hover:border-white/50 opacity-70 hover:opacity-100'}`}
                                 >
-                                    <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${scene.image})` }} />
-                                    <div className="absolute inset-0 bg-black/30 flex items-end p-2">
+                                    <Image
+                                        src={scene.image}
+                                        alt={scene.name}
+                                        fill
+                                        priority
+                                        sizes="(max-width: 768px) 100vw, 128px"
+                                        className="object-cover object-center"
+                                    />
+                                    <div className="absolute inset-0 bg-black/30 flex items-end p-2 z-10">
                                         <span className="text-white text-xs font-bold truncate">{scene.name}</span>
                                     </div>
                                 </button>

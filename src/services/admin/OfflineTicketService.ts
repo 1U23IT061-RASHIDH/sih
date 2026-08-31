@@ -120,9 +120,6 @@ export class OfflineTicketService {
         return null;
     }
 
-    /**
-     * Mark ticket as exited
-     */
     static async markExit(id: string, source: string = 'OFFLINE') {
         if (source === 'ONLINE') {
             return await prisma.parkingBooking.update({
@@ -138,6 +135,25 @@ export class OfflineTicketService {
         return await prisma.offlineTicket.update({
             where: { id },
             data: { status: 'EXITED' }
+        });
+    }
+
+    /**
+     * Mark ticket as cancelled (Reject)
+     */
+    static async cancelTicket(id: string, source: string = 'OFFLINE') {
+        if (source === 'ONLINE') {
+            return await prisma.parkingBooking.update({
+                where: { id },
+                data: {
+                    status: 'CANCELLED'
+                }
+            });
+        }
+
+        return await prisma.offlineTicket.update({
+            where: { id },
+            data: { status: 'CANCELLED' }
         });
     }
 
